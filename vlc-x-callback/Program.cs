@@ -16,7 +16,7 @@ namespace vlc_x_callback {
             if( uri == null )
                 throw new ArgumentNullException( nameof( uri ), @"uri parameter not optional" );
             if( !xCallbackUrlValue.Equals( uri.Authority, StringComparison.InvariantCulture ) )
-                throw new ArgumentException( $@"Authority needs to be {xCallbackUrlValue} and not {uri.Authority}" );
+                throw new ArgumentException( nameof( uri.Authority ), $@"Authority needs to be {xCallbackUrlValue} and not {uri.Authority}" );
             _uri = uri;
         }
         string _action;
@@ -55,16 +55,9 @@ namespace vlc_x_callback {
         }
         private string BuildCommandLine() {
             var sb = new StringBuilder( 512 );
-            sb.Append( Scheme );
-            sb.Append( ' ' );
-            sb.Append( Action );
-            foreach( var p in ParameterValues ) {
-                sb.Append( ' ' );
-                sb.Append( '-' );
-                sb.Append( p.Key );
-                sb.Append( ' ' );
-                sb.Append( p.Value );
-            }
+            sb.Append( $@"{Scheme} {Action}" );
+            foreach( var p in ParameterValues )
+                sb.Append( $@" -{p.Key} {p.Value}" );
             return sb.ToString();
         }
         public string this[ string parameter ] {
@@ -72,10 +65,10 @@ namespace vlc_x_callback {
                 return Query[ parameter ];
             }
         }
-        public static void Register( string protocol, string defaultIcon, FileInfo executeable ) {
+        public static void Register( string protocol, string defaultIcon, FileInfo executable ) {
             var k = Registry.ClassesRoot.CreateSubKey(protocol);
             k.CreateSubKey( @"DefaultIcon" ).SetValue( string.Empty, defaultIcon );
-            k.CreateSubKey( @"shell" ).CreateSubKey( @"open" ).CreateSubKey( @"command" ).SetValue( string.Empty, $@"""{executeable.FullName}"" ""%1""" );
+            k.CreateSubKey( @"shell" ).CreateSubKey( @"open" ).CreateSubKey( @"command" ).SetValue( string.Empty, $@"""{executable.FullName}"" ""%1""" );
             k.SetValue( string.Empty, $@"URL:{protocol} Protocol" );
             k.SetValue( @"URL Protocol", string.Empty );
         }
@@ -85,14 +78,16 @@ namespace vlc_x_callback {
     }
     class Program {
         const string Protocol = @"vlc-x-callback";
-        static string VlcPlayer = Environment.ExpandEnvironmentVariables( @"%ProgramW6432%\VideoLAN\VLC\VLC.exe" );
+        static FileInfo VlcPlayer = new FileInfo( Environment.ExpandEnvironmentVariables( @"%ProgramW6432%\VideoLAN\VLC\VLC.exe" ));
         static void Main( string[] args ) {
+            if( !VlcPlayer.Exists )
+                throw new FileNotFoundException( $@"VLC Player executable not found at {VlcPlayer.FullName}", VlcPlayer.FullName );
             var parameter = args.FirstOrDefault();
             if( @"-register".Equals( parameter, StringComparison.InvariantCultureIgnoreCase ) )
                 xCallbackUrl.Register(
                     protocol: Protocol,
-                    defaultIcon: $@"{VlcPlayer},0",
-                    executeable: new FileInfo( new Program().GetType().GetTypeInfo().Assembly.Location )
+                    defaultIcon: $@"{VlcPlayer.FullName},0",
+                    executable: new FileInfo( new Program().GetType().GetTypeInfo().Assembly.Location )
                 );
             else if( @"-unregister".Equals( parameter, StringComparison.InvariantCultureIgnoreCase ) )
                 xCallbackUrl.Unregister(
@@ -103,7 +98,7 @@ namespace vlc_x_callback {
             else
                 foreach( var arg in args ) {
                     var xc = new xCallbackUrl(new Uri(arg));
-                    Process.Start( new ProcessStartInfo( VlcPlayer, xc[ @"url" ] ) {
+                    Process.Start( new ProcessStartInfo( VlcPlayer.FullName, xc[ @"url" ] ) {
                         WindowStyle = ProcessWindowStyle.Hidden,
                         CreateNoWindow = true
                     } );
