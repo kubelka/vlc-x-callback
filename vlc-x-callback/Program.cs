@@ -78,7 +78,7 @@ namespace vlc_x_callback {
     }
     class Program {
         const string Protocol = @"vlc-x-callback";
-        static FileInfo VlcPlayer = new FileInfo( Environment.ExpandEnvironmentVariables( @"%ProgramW6432%\VideoLAN\VLC\VLC.exe" ));
+        static FileInfo VlcPlayer = new FileInfo( Environment.ExpandEnvironmentVariables( @"%ProgramFiles%\VideoLAN\VLC\VLC.exe" ));
         static void Main( string[] args ) {
             if( !VlcPlayer.Exists )
                 throw new FileNotFoundException( $@"VLC Player executable not found at {VlcPlayer.FullName}", VlcPlayer.FullName );
